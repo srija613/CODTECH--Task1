@@ -1,0 +1,66 @@
+import socket
+import requests
+
+# Define a list of common ports to scan
+COMMON_PORTS = [22, 80, 443, 3306, 5432, 8080]
+
+def scan_ports(hostname):
+    open_ports = []
+    for port in COMMON_PORTS:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        result = sock.connect_ex((hostname, port))
+        if result == 0:
+            open_ports.append(port)
+        sock.close()
+    return open_ports
+
+def check_website_version(url):
+    try:
+        response = requests.get(url)
+        server_header = response.headers.get('Server', 'Unknown')
+        return server_header
+    except requests.RequestException as e:
+        return f"Error: {e}"
+
+def check_common_misconfigurations(url):
+    vulnerabilities = []
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            if "index.php" in response.text:
+                vulnerabilities.append("Potential directory listing vulnerability detected.")
+            if "<title>403 Forbidden</title>" in response.text:
+                vulnerabilities.append("Possible misconfiguration in permissions.")
+        else:
+            vulnerabilities.append("Website returned an unexpected status code.")
+    except requests.RequestException as e:
+        vulnerabilities.append(f"Error: {e}")
+    return vulnerabilities
+
+def main():
+    hostname = input("Enter the hostname or IP address to scan for open ports: ")
+    url = input("Enter the website URL to check for vulnerabilities: ")
+   
+    print("\nScanning for open ports...")
+    open_ports = scan_ports(hostname)
+    if open_ports:
+        print(f"Open ports on {hostname}: {open_ports}")
+    else:
+        print("No open ports found.")
+
+    print("\nChecking website version...")
+    server_version = check_website_version(url)
+    print(f"Server version: {server_version}")
+
+    print("\nChecking for common misconfigurations...")
+    misconfigurations = check_common_misconfigurations(url)
+    if misconfigurations:
+        print("Potential misconfigurations detected:")
+        for vuln in misconfigurations:
+            print(f" - {vuln}")
+    else:
+        print("No common misconfigurations detected.")
+
+
+main()
